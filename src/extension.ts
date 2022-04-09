@@ -5,229 +5,227 @@ import yaml from 'js-yaml';
 import { PhraseFetcher } from './services/PhraseFetcher';
 import { Translations } from './services/Translations';
 import { StatusBar } from './services/StatusBar';
-import { TranslationsProvider } from './TranslationsProvider';
+import { forEachTranslateCall } from './services/forEachTranslateCall';
 import { TranslationListViewProvider } from './TranslationListViewProvider';
 
 let myStatusBarItem: vscode.StatusBarItem;
 
 // this method is called when vs code is activated
 export async function activate(context: vscode.ExtensionContext) {
-    const fetcher = await createTranslationsFetcher();
-    const translations = new Translations(fetcher, 'en');
+  const fetcher = await createTranslationsFetcher();
 
-    translations.onDidUpdateStart(() => {
-        statusBar.setIsLoading(true);
+  if (!fetcher) {
+    return;
+  }
+
+  const translations = new Translations(fetcher, 'en');
+
+  /* *********************************** */
+
+  const translationListViewProvider = new TranslationListViewProvider(
+    translations,
+    context
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      TranslationListViewProvider.viewType,
+      translationListViewProvider
+    )
+  );
+
+  /* *********************************** */
+
+  const provider = new InfoViewProvider();
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      InfoViewProvider.viewType,
+      provider /*,
+      { webviewOptions: { retainContextWhenHidden: true } }*/
+    )
+  );
+
+  /* *********************************** */
+
+  // const nodeDependenciesProvider = new TranslationsProvider();
+
+  // vscode.window.registerTreeDataProvider(
+  //   'openclassrooms.view.info2',
+  //   nodeDependenciesProvider
+  // );
+
+  /* *********************************** */
+
+  let timeout: NodeJS.Timer | undefined = undefined;
+
+  const myCommandId = 'ocvscodeplugin.status';
+  myStatusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  );
+  myStatusBarItem.command = myCommandId;
+  context.subscriptions.push(myStatusBarItem);
+
+  const statusBar = new StatusBar(myStatusBarItem);
+
+  // ----------------------------------
+
+  const translationKeyOKDecorationType =
+    vscode.window.createTextEditorDecorationType({
+      backgroundColor: '#00FF0022',
+      before: {
+        contentText: '🟩',
+      },
     });
 
-    translations.onDidUpdateFinish(() => {
-        statusBar.setIsLoading(false);
+  const translationKeyMissingDecorationType =
+    vscode.window.createTextEditorDecorationType({
+      backgroundColor: '#FF000022',
+      overviewRulerColor: 'red',
+      before: {
+        contentText: '🔴',
+      },
     });
 
-    // if (vscode.workspace?.workspaceFolders?.[0]) {
-    //     const a = vscode.workspace.createFileSystemWatcher(
-    //         new vscode.RelativePattern(
-    //             vscode.workspace.workspaceFolders[0],
-    //             '**/*.jsx'
-    //         )
-    //     );
-    // }
+  let activeEditor = vscode.window.activeTextEditor;
 
-    // vscode.workspace.findFiles('*.jsx', '/node_modules/').then((y) => {
-    //     console.log(y); //test
-    // });
+  translations.onDidUpdateStart(() => {
+    statusBar.setIsLoading(true);
+  });
 
-    /* *********************************** */
-
-    const translationListViewProvider = new TranslationListViewProvider(
-        translations,
-        context.extensionUri
-    );
-
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(
-            TranslationListViewProvider.viewType,
-            translationListViewProvider
-        )
-    );
-
-    /* *********************************** */
-
-    const provider = new InfoViewProvider();
-
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(
-            InfoViewProvider.viewType,
-            provider
-        )
-    );
-
-    /* *********************************** */
-
-    const nodeDependenciesProvider = new TranslationsProvider();
-    vscode.window.registerTreeDataProvider(
-        'openclassrooms.view.info2',
-        nodeDependenciesProvider
-    );
-
-    /* *********************************** */
-
-    let timeout: NodeJS.Timer | undefined = undefined;
-    console.log('POUET 2');
-
-    const myCommandId = 'ocvscodeplugin.status';
-    myStatusBarItem = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        100
-    );
-    myStatusBarItem.command = myCommandId;
-    context.subscriptions.push(myStatusBarItem);
-
-    const statusBar = new StatusBar(myStatusBarItem);
-
-    await translations.update();
-
-    // ----------------------------------
-
-    const translationKeyOKDecorationType =
-        vscode.window.createTextEditorDecorationType({
-            backgroundColor: '#00FF0022',
-            before: {
-                contentText: '🟩',
-            },
-        });
-
-    const translationKeyMissingDecorationType =
-        vscode.window.createTextEditorDecorationType({
-            backgroundColor: '#FF000022',
-            overviewRulerColor: 'red',
-            before: {
-                contentText: '🔴',
-            },
-        });
-
-    let activeEditor = vscode.window.activeTextEditor;
+  translations.onDidUpdateFinish(() => {
+    statusBar.setIsLoading(false);
 
     async function updateDecorations() {
-        if (!activeEditor || !translations.isInitialized) {
-            return;
+      if (!activeEditor) {
+        return;
+      }
+
+      const text = activeEditor.document.getText();
+      const translationOKCalls: vscode.DecorationOptions[] = [];
+      const translationMissingCalls: vscode.DecorationOptions[] = [];
+
+      await forEachTranslateCall(text, async (key: string, match: any) => {
+        if (!activeEditor) {
+          return;
         }
 
-        const text = activeEditor.document.getText();
-        let match;
+        const translation = await translations.getTranslationByKey(key);
+        const isExisting = Boolean(translation);
+        const start = match.index + match[1].length;
+        const startPos = activeEditor.document.positionAt(start);
+        const endPos = activeEditor.document.positionAt(
+          start + match[2].length
+        );
+        const decoration = {
+          range: new vscode.Range(startPos, endPos),
+          hoverMessage: translation ?? '',
+        };
 
-        const translationCallRegEx = [
-            /(translate\()('(\w+\.\w+.*?)')(\))/g,
-            /(<Translate.*content=)("(\w+\.\w+.*?))(")/gms,
-        ];
-        const translationOKCalls: vscode.DecorationOptions[] = [];
-        const translationMissingCalls: vscode.DecorationOptions[] = [];
-
-        for (const reg of translationCallRegEx) {
-            if (!activeEditor) {
-                return;
-            }
-
-            while ((match = reg.exec(text))) {
-                const key = match[3];
-                const translation = await translations.getTranslationByKey(key);
-                const isExisting = Boolean(translation);
-                const start = match.index + match[1].length;
-                const startPos = activeEditor.document.positionAt(start);
-                const endPos = activeEditor.document.positionAt(
-                    start + match[2].length
-                );
-                const decoration = {
-                    range: new vscode.Range(startPos, endPos),
-                    hoverMessage: translation ?? '',
-                };
-
-                if (isExisting) {
-                    translationOKCalls.push(decoration);
-                } else {
-                    translationMissingCalls.push(decoration);
-                }
-            }
+        if (isExisting) {
+          translationOKCalls.push(decoration);
+        } else {
+          translationMissingCalls.push(decoration);
         }
+      });
 
-        activeEditor.setDecorations(
-            translationKeyOKDecorationType,
-            translationOKCalls
-        );
-        activeEditor.setDecorations(
-            translationKeyMissingDecorationType,
-            translationMissingCalls
-        );
+      activeEditor.setDecorations(
+        translationKeyOKDecorationType,
+        translationOKCalls
+      );
+      activeEditor.setDecorations(
+        translationKeyMissingDecorationType,
+        translationMissingCalls
+      );
 
-        statusBar.setIsError(translationMissingCalls.length > 0);
-        statusBar.setTranslationCount(
-            translationMissingCalls.length + translationOKCalls.length
-        );
+      statusBar.setIsError(translationMissingCalls.length > 0);
+      statusBar.setTranslationCount(
+        translationMissingCalls.length + translationOKCalls.length
+      );
     }
 
     function triggerUpdateDecorations(throttle = false) {
-        if (timeout) {
-            clearTimeout(timeout);
-            timeout = undefined;
-        }
-        if (throttle) {
-            timeout = setTimeout(updateDecorations, 500);
-        } else {
-            updateDecorations();
-        }
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = undefined;
+      }
+      if (throttle) {
+        timeout = setTimeout(updateDecorations, 500);
+      } else {
+        updateDecorations();
+      }
     }
 
     if (activeEditor) {
-        triggerUpdateDecorations();
+      triggerUpdateDecorations();
     }
 
     vscode.window.onDidChangeActiveTextEditor(
-        (editor) => {
-            activeEditor = editor;
-            if (editor) {
-                triggerUpdateDecorations();
-            }
-        },
-        null,
-        context.subscriptions
+      (editor) => {
+        activeEditor = editor;
+        if (editor) {
+          triggerUpdateDecorations();
+        }
+      },
+      null,
+      context.subscriptions
     );
 
     vscode.workspace.onDidChangeTextDocument(
-        (event) => {
-            if (activeEditor && event.document === activeEditor.document) {
-                triggerUpdateDecorations(true);
-            }
-        },
-        null,
-        context.subscriptions
+      (event) => {
+        if (activeEditor && event.document === activeEditor.document) {
+          triggerUpdateDecorations(true);
+        }
+      },
+      null,
+      context.subscriptions
     );
+  });
+
+  await translations.update();
 }
 
 class InfoViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'openclassrooms.view.info';
+  public static readonly viewType = 'openclassrooms.view.info';
 
-    resolveWebviewView(webviewView: vscode.WebviewView) {
-        webviewView.webview.html = 'pouet';
-    }
+  resolveWebviewView(webviewView: vscode.WebviewView) {
+    webviewView.webview.html = 'pouet';
+  }
 }
 
 async function createTranslationsFetcher() {
-    const fetcher = new PhraseFetcher();
+  if (!vscode.workspace.workspaceFolders) {
+    return;
+  }
 
-    const basePathUri = vscode.workspace.workspaceFolders?.[0].uri;
+  let conf: any;
+  const configurationFilename = '.phrase.yml';
+  const fetcher = new PhraseFetcher();
 
-    if (basePathUri) {
-        const u = vscode.Uri.joinPath(basePathUri, '.phrase.yml');
-        const a = await vscode.workspace.fs.readFile(u);
+  for (const workspaceFolder of vscode.workspace.workspaceFolders) {
+    const basePathUri = workspaceFolder.uri;
+    const u = vscode.Uri.joinPath(basePathUri, configurationFilename);
 
-        const conf: any = yaml.load(a.toString());
-
-        fetcher.configure(
-            {
-                accessToken: conf.phrase.access_token,
-            },
-            conf.phrase.project_id
-        );
+    try {
+      const a = await vscode.workspace.fs.readFile(u);
+      conf = yaml.load(a.toString());
+    } catch {
+      // TODO: error handling
     }
+  }
 
-    return fetcher;
+  if (!conf) {
+    vscode.window.showErrorMessage(`${configurationFilename} not found.`);
+    return;
+  }
+
+  fetcher.configure(
+    {
+      accessToken: conf.phrase.access_token,
+    },
+    conf.phrase.project_id
+  );
+
+  return fetcher;
 }

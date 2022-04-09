@@ -1,0 +1,15 @@
+{
+    "editor.insertSpaces": false,
+    "workbench.colorCustomizations": {
+        "tab.activeBackground": "#303030",
+        "tab.inactiveBackground": "#000",
+        "activityBar.background": "#322A42",
+        "titleBar.activeBackground": "#463A5C",
+        "titleBar.activeForeground": "#FCFCFD"
+    },
+    "editor.formatOnSave": true,
+    "prettier.singleQuote": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.tabWidth": 4,
+    "editor.minimap.enabled": false
+}
