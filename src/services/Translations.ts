@@ -76,9 +76,13 @@ export class Translations {
     return typeof value === 'string' ? value : null;
   }
 
-  getMappingUnusedKeys() {
-    return this.fileMapper.getUnusedKeys();
-  }
+  // getMappingUnusedKeys() {
+  //   return this.fileMapper.getUnusedKeys();
+  // }
+
+  // getMappingMissingKeys() {
+  //   return this.fileMapper.getMissingKeys();
+  // }
 
   getMappingFilePathsFromTranslations() {
     return this.fileMapper.getFilePathsFromTranslations();

@@ -1,13 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import ReactDOM from 'react-dom';
+import reactDom from 'react-dom';
 import { TranslationList } from './TranslationList';
-
-// declare global {
-//   interface Window {
-//     __View: any;
-//   }
-// }
 
 const VIEWS: Record<string, any> = {
   TranslationList,
@@ -26,8 +20,12 @@ try {
     throw new Error('Bad view name. (' + viewName + ')');
   }
 
+  console.log('VIEW: rendering ->' + viewName);
+
   const reactRoot = createRoot(root);
   reactRoot.render(React.createElement(VIEWS[viewName]));
+
+  // reactDom.render(React.createElement(VIEWS[viewName]), root);
 } catch (e) {
   if (root) {
     root.innerHTML = 'ERROR';

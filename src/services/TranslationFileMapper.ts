@@ -9,7 +9,8 @@ const MAX_FILE_READ = 10;
 export class TranslationFileMapper {
   private filepathToKeys: Record<string, string[]> = {};
   private keyToFilePaths: Record<string, string[]> | undefined = undefined;
-  private unusedKeys: string[] = [];
+  // private unusedKeys: string[] = [];
+  // private missingdKeys: string[] = [];
 
   public translationsPromise: Promise<Record<string, unknown>> | null = null;
 
@@ -76,10 +77,14 @@ export class TranslationFileMapper {
       {}
     );
 
-    this.unusedKeys = _.difference(
-      translationProviderKeys,
-      Object.keys(this.keyToFilePaths)
-    );
+    // this.unusedKeys = _.difference(
+    //   translationProviderKeys,
+    //   Object.keys(this.keyToFilePaths)
+    // );
+
+    // const UsedInFilesKeys = Object.keys(this.keyToFilePaths);
+
+    // this.missingdKeys = _.difference(UsedInFilesKeys, translationProviderKeys);
 
     this._onDidUpdate.fire();
   }
@@ -93,9 +98,13 @@ export class TranslationFileMapper {
     return uriStrings.map((str) => Uri.parse(str));
   }
 
-  getUnusedKeys(): string[] {
-    return this.unusedKeys;
-  }
+  // getUnusedKeys(): string[] {
+  //   return this.unusedKeys;
+  // }
+
+  // getMissingKeys(): string[] {
+  //   return this.missingdKeys;
+  // }
 
   getFilePathsFromTranslations(): Record<string, string[]> | undefined {
     return this.keyToFilePaths;

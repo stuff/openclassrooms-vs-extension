@@ -6,7 +6,7 @@ import { EntryFiles } from './EntryFiles';
 
 type Props = {
   keyName: string;
-  value: string;
+  value: string | null;
   queryFilter: string;
   isOpen: boolean;
   onToggle: () => void;
@@ -66,7 +66,6 @@ const useStyles = createUseStyles({
     '& $key': {
       whiteSpace: 'normal',
       wordBreak: 'break-all',
-      cursor: 'default',
     },
     '& $content': {
       marginBottom: 8,
@@ -92,10 +91,28 @@ const useStyles = createUseStyles({
 const stringDecorate = (str: string, queryFilter: string) => {
   let newString = str;
 
-  newString = newString.replace(
-    new RegExp(/(%.*?%)/, 'g'),
-    '<span class="var">$1</span>'
-  );
+  const decorateVar = (str: string) =>
+    newString.replace(
+      new RegExp(/(%.*?%)/, 'g'),
+      '<span class="var">$1</span>'
+    );
+
+  const htmlEntities = (str: string) =>
+    String(newString)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const decorateHtmlEntities = (str: string) =>
+    newString.replace(
+      new RegExp(/(&lt;.*?&gt;.*?.*?&gt;)/, 'g'),
+      '<span class="html">$1</span>'
+    );
+
+  newString = htmlEntities(newString);
+  newString = decorateVar(newString);
+  newString = decorateHtmlEntities(newString);
 
   if (queryFilter) {
     const filterReg = new RegExp(`(${queryFilter})`, 'i');
@@ -154,7 +171,7 @@ export const Entry = ({
             <div className={classes.value}>
               <div
                 dangerouslySetInnerHTML={{
-                  __html: stringDecorate(value, queryFilter),
+                  __html: stringDecorate(value || '', queryFilter),
                 }}
               />
             </div>

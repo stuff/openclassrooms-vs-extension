@@ -7,7 +7,6 @@ import {
   Event,
   ExtensionContext,
   Range,
-  workspace,
   window,
   TextEditorRevealType,
   Selection,
@@ -35,6 +34,7 @@ export class TranslationListViewProvider implements WebviewViewProvider {
   }
 
   resolveWebviewView(webviewView: WebviewView) {
+    console.log('== resolveWebviewView');
     this._view = webviewView;
     const activeEditor = window.activeTextEditor;
     if (activeEditor) {
@@ -49,7 +49,10 @@ export class TranslationListViewProvider implements WebviewViewProvider {
 
     this._view.onDidChangeVisibility((event) => {
       if (this._view?.visible) {
-        this._notifyViewChange();
+        setTimeout(() => {
+          // TODO: find a better fix...
+          this._notifyViewChange();
+        }, 800);
       }
     });
 
@@ -104,13 +107,14 @@ export class TranslationListViewProvider implements WebviewViewProvider {
 
   private async _notifyViewChange() {
     if (!this._view) {
+      console.log('No view');
       return;
     }
 
     const translations = await this.translations.getTranslations();
     const flatTranslations: Record<string, string> = flat(translations);
 
-    this._view.webview.postMessage({
+    const message = {
       type: 'updateList',
       translations: Object.keys(flatTranslations).map((k) => ({
         key: k,
@@ -119,7 +123,11 @@ export class TranslationListViewProvider implements WebviewViewProvider {
       filePathsFromTranslations:
         this.translations.getMappingFilePathsFromTranslations(),
       activeFile: this._activeUri?.toString(),
-    });
+    };
+
+    console.log(Object.keys(message));
+
+    this._view.webview.postMessage(message);
   }
 
   private _getHtmlForWebView(webview: Webview) {

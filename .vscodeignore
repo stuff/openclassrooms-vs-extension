@@ -1,3 +1,4 @@
+.history
 .vscode/**
 node_modules
 out/
@@ -8,3 +9,4 @@ src/**
 .gitignore
 tslint.json
 tsconfig.json
+openclassrooms-vscode-plugin-*

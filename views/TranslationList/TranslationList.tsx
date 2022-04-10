@@ -1,8 +1,10 @@
 import React, { useState, useEffect, KeyboardEventHandler } from 'react';
 import { createUseStyles } from 'react-jss';
+import _ from 'lodash';
 
 import { Entry } from './Entry';
 import { Header } from './Header';
+import { UiLoader } from './UiLoader';
 import {
   HeaderTypeFilters,
   FilterType,
@@ -11,7 +13,7 @@ import {
 
 type TranslationList = {
   key: string;
-  value: string;
+  value: string | null;
 }[];
 
 type OpenStates = Record<string, boolean>;
@@ -59,7 +61,9 @@ const vscode = acquireVsCodeApi();
 export const TranslationList = () => {
   const classes = useStyles();
 
-  const [filterType, setFilterType] = useState<FilterTypeProps>(FilterType.All);
+  const [filterType, setFilterType] = useState<FilterTypeProps>(
+    FilterType.AllUsed
+  );
   const [openStates, setOpenStates] = useState<OpenStates>({});
   const [queryFilter, setQueryFilter] = useState('');
   const [activeFile, setActiveFile] = useState();
@@ -67,8 +71,8 @@ export const TranslationList = () => {
     TranslationList | undefined
   >();
   const [filePathsfromTranslations, setFilePathsfromTranslations] = useState<
-    Record<string, string[]>
-  >({});
+    Record<string, string[]> | undefined
+  >();
 
   useEffect(() => {
     const handleOnMessage = (event: MessageEvent) => {
@@ -99,17 +103,30 @@ export const TranslationList = () => {
     setQueryFilter(input.value);
   };
 
-  const filterReg = new RegExp(`(${queryFilter})`, 'i');
+  let missingTranslations: TranslationList = [];
+  if (filePathsfromTranslations && translations) {
+    const usedInFilesKeys = Object.keys(filePathsfromTranslations);
+    const translationsKeys = translations.map(({ key }) => key);
+    const missingKeys = _.difference(usedInFilesKeys, translationsKeys);
+    missingTranslations = missingKeys.map((key) => ({ key, value: null }));
+  }
 
+  const filterReg = new RegExp(`(${queryFilter})`, 'i');
+  const isWaitingIndexation = !filePathsfromTranslations;
   let displayedTranslations: TranslationList = [];
   const openedTranslations: OpenStates = { ...openStates };
 
+  const workingTranslations = _.sortBy(
+    [...translations, ...missingTranslations],
+    'key'
+  );
+
   if (!queryFilter) {
-    displayedTranslations = [...translations];
+    displayedTranslations = [...workingTranslations];
   } else {
-    translations.forEach(({ key, value }) => {
+    workingTranslations.forEach(({ key, value }) => {
       const foundInKey = key.match(filterReg);
-      const foundInValue = value.match(filterReg);
+      const foundInValue = value && value.match(filterReg);
       if (foundInKey || foundInValue) {
         displayedTranslations.push({ key, value });
       }
@@ -119,25 +136,56 @@ export const TranslationList = () => {
     });
   }
 
-  if (filePathsfromTranslations) {
-    if (filterType === FilterType.Unused) {
-      displayedTranslations = displayedTranslations.filter(({ key }) => {
-        const files = filePathsfromTranslations[key];
-        if (!files) {
-          return true;
-        }
-        return files.length === 0;
-      });
-    }
+  let filteredUnusedTranslations: TranslationList = [];
+  let filteredAllUsedTranslations: TranslationList = [];
+  let filteredCurrentFileTranslations: TranslationList = [];
+  let filteredMissingTranslations: TranslationList = [];
 
-    if (filterType === FilterType.CurrentFile) {
-      displayedTranslations = displayedTranslations.filter(({ key }) => {
+  if (filePathsfromTranslations) {
+    filteredUnusedTranslations = displayedTranslations.filter(({ key }) => {
+      const files = filePathsfromTranslations[key];
+      if (!files) {
+        return true;
+      }
+      return files.length === 0;
+    });
+
+    filteredAllUsedTranslations = displayedTranslations.filter(({ key }) => {
+      const files = filePathsfromTranslations[key];
+      if (!files) {
+        return false;
+      }
+      return files.length > 0;
+    });
+
+    filteredCurrentFileTranslations = displayedTranslations.filter(
+      ({ key }) => {
         const files = filePathsfromTranslations[key];
         if (!files || !activeFile) {
           return false;
         }
         return files.includes(activeFile);
-      });
+      }
+    );
+
+    filteredMissingTranslations = displayedTranslations.filter(({ value }) => {
+      return !value;
+    });
+
+    if (filterType === FilterType.Unused) {
+      displayedTranslations = [...filteredUnusedTranslations];
+    }
+
+    if (filterType === FilterType.AllUsed) {
+      displayedTranslations = [...filteredAllUsedTranslations];
+    }
+
+    if (filterType === FilterType.CurrentFile) {
+      displayedTranslations = [...filteredCurrentFileTranslations];
+    }
+
+    if (filterType === FilterType.Missing) {
+      displayedTranslations = [...filteredMissingTranslations];
     }
   }
 
@@ -154,7 +202,19 @@ export const TranslationList = () => {
           <Header onKeyUp={handleKeyUp} />
         </div>
         <div className={classes.headerContainer}>
-          <HeaderTypeFilters type={filterType} onChangeFilter={setFilterType} />
+          <UiLoader isProcessing={isWaitingIndexation}>
+            <HeaderTypeFilters
+              type={filterType}
+              onChangeFilter={setFilterType}
+              stats={{
+                [FilterType.AllUsed]: filteredAllUsedTranslations.length,
+                [FilterType.CurrentFile]:
+                  filteredCurrentFileTranslations.length,
+                [FilterType.Missing]: filteredMissingTranslations.length,
+                [FilterType.Unused]: filteredUnusedTranslations.length,
+              }}
+            />
+          </UiLoader>
         </div>
       </div>
       <div className={classes.list}>

@@ -2,3 +2,4 @@ out
 dist
 node_modules
 yarn-error.log
+openclassrooms-vscode-plugin-*
