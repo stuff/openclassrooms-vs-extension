@@ -10,8 +10,11 @@ If the content of the tab don't show, usually going on another tab and returning
 yarn webpack-dev
 
 ### launch vscode test window
-type F5
+type F5 (obviously, you need to use Vscode to edit the code :p)
 
 ### refresh vscode test window
 you can `control-R` to refresh
+
+you have to install `vsce` to package the extension in a `vsix` file in order to install it in Vscode
+(see https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
 
