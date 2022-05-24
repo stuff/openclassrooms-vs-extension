@@ -8,11 +8,12 @@ import {
   ExtensionContext,
   Range,
   window,
+  workspace,
   TextEditorRevealType,
   Selection,
 } from 'vscode';
 import flat from 'flat';
-import { Translations } from './services/Translations';
+import { Translations } from '../services/Translations';
 
 export class TranslationListViewProvider implements WebviewViewProvider {
   public static readonly viewType = 'openclassrooms.view.translationList';
@@ -81,6 +82,10 @@ export class TranslationListViewProvider implements WebviewViewProvider {
       }
       this._activeUri = editor.document.uri;
       this._notifyViewChange();
+    });
+
+    workspace.onDidChangeTextDocument((e) => {
+      console.log(e);
     });
 
     webviewView.webview.html = this._getHtmlForWebView(webviewView.webview);

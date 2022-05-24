@@ -1,4 +1,3 @@
-import { workspace, Uri } from 'vscode';
 import _ from 'lodash';
 import { EventEmitter, Event } from 'vscode';
 

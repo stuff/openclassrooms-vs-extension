@@ -1,9 +1,12 @@
 export async function forEachTranslateCall(text: string, callback: any) {
   let match;
 
+  // FIXME: Handle {translate('admin.crud.cta.add', { item: labelItemSingular })}
+  // FIXME: For <Translation, last " is outside highlite
   const translationCallRegEx = [
-    /(translate\()('(\w+\.\w+.*?)')(\))/g,
-    /(<Translate.*?content=)("(\w+\.\w+.*?))(")/gms,
+    /(translate\()('(\w+\.\w+.*?)')(\))/gms,
+    /(translate\()('(\w+\.\w+.*?)').*?}\)}/gms,
+    /(<Translate.*?content=)("(\w+\.\w+.*?)")/gms,
   ];
 
   for (const reg of translationCallRegEx) {

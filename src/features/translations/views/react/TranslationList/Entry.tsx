@@ -27,6 +27,9 @@ const useStyles = createUseStyles({
     '& $content .var': {
       color: 'var(--vscode-textPreformat-foreground)',
     },
+    '& $content .html': {
+      background: 'rgba(255, 255,0, 0.2)',
+    },
   },
   content: {
     minWidth: 0,

@@ -1,7 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import reactDom from 'react-dom';
-import { TranslationList } from './TranslationList';
+import { TranslationList } from '../src/features/translations/views/react/TranslationList';
 
 const VIEWS: Record<string, any> = {
   TranslationList,
