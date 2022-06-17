@@ -1,3 +1,5 @@
+⚠️ Code moves to https://github.com/stuff/openclassrooms-vs-extension ⚠️
+
 The extension handles translations, and maybe it would be cool to add other features, so it's setup to be evolutive.
 It was quickly coded, and I've learnt to use both vs api and typescript, so probably not best code ever.
 The view of the translations tabs is done with react.
