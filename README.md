@@ -1,4 +1,4 @@
-⚠️ Code moves to https://github.com/OpenClassrooms/webtools-extension ⚠️
+⚠️ Code moves to https://github.com/OpenClassrooms/vscode-dev-extension ⚠️
 
 The extension handles translations, and maybe it would be cool to add other features, so it's setup to be evolutive.
 It was quickly coded, and I've learnt to use both vs api and typescript, so probably not best code ever.
